@@ -6,6 +6,8 @@ import { InputIndicator } from "../elements/input-indicator";
 import * as Skeleton from "../utils/skeleton";
 import * as Misc from "../utils/misc";
 import TypoList from "../utils/typo-list";
+import { z } from "zod";
+import { UserNameSchema } from "@monkeytype/contracts/users";
 
 export function enableSignUpButton(): void {
   $(".page.pageLogin .register.side button").prop("disabled", false);
@@ -58,6 +60,14 @@ const checkNameDebounced = debounce(1000, async () => {
     updateSignupButton();
     return;
   }
+
+  const parsed = UserNameSchema.safeParse(val);
+  if (!parsed.success) {
+    nameIndicator.show("unavailable", parsed.error.errors[0]?.message);
+    updateSignupButton();
+    return;
+  }
+
   const response = await Ape.users.getNameAvailability({
     params: { name: val },
   });
@@ -81,8 +91,6 @@ const checkNameDebounced = debounce(1000, async () => {
 
 const checkEmail = (): void => {
   const email = $(".page.pageLogin .register.side .emailInput").val() as string;
-  const emailRegex =
-    /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
   const educationRegex =
     /@.*(student|education|school|\.edu$|\.edu\.|\.ac\.|\.sch\.)/i;
 
@@ -90,7 +98,7 @@ const checkEmail = (): void => {
     return email.endsWith(typo);
   });
 
-  if (emailRegex.test(email)) {
+  if (z.string().email().safeParse(email).success) {
     if (emailHasTypo) {
       emailIndicator.show(
         "typo",
@@ -105,7 +113,7 @@ const checkEmail = (): void => {
       emailIndicator.show("valid");
     }
   } else {
-    emailIndicator.show("invalid");
+    emailIndicator.show("invalid", "Please enter a valid email address.");
   }
 
   updateSignupButton();
@@ -340,7 +348,7 @@ $(".page.pageLogin .register.side .verifyPasswordInput").on("input", () => {
 });
 
 export const page = new Page({
-  name: "login",
+  id: "login",
   element: $(".page.pageLogin"),
   path: "/login",
   afterHide: async (): Promise<void> => {

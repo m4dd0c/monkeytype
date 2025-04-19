@@ -13,6 +13,7 @@ import * as CustomTextState from "../states/custom-text-name";
 import * as TestStats from "./test-stats";
 import * as PractiseWords from "./practise-words";
 import * as ShiftTracker from "./shift-tracker";
+import * as AltTracker from "./alt-tracker";
 import * as Focus from "./focus";
 import * as Funbox from "./funbox/funbox";
 import * as Keymap from "../elements/keymap";
@@ -64,8 +65,15 @@ import {
   CustomTextDataWithTextLen,
 } from "@monkeytype/contracts/schemas/results";
 import * as XPBar from "../elements/xp-bar";
-import { getActiveFunboxes } from "./funbox/list";
+import {
+  findSingleActiveFunboxWithFunction,
+  getActiveFunboxes,
+  getActiveFunboxesWithFunction,
+} from "./funbox/list";
 import { getFunboxesFromString } from "@monkeytype/funbox";
+import * as CompositionState from "../states/composition";
+import { SnapshotResult } from "../constants/default-snapshot";
+import { WordGenError } from "../utils/word-gen-error";
 
 let failReason = "";
 const koInputVisual = document.getElementById("koInputVisual") as HTMLElement;
@@ -79,7 +87,7 @@ export function clearNotSignedInResult(): void {
 export function setNotSignedInUidAndHash(uid: string): void {
   if (notSignedInLastResult === null) return;
   notSignedInLastResult.uid = uid;
-  //@ts-expect-error
+  //@ts-expect-error really need to delete this
   delete notSignedInLastResult.hash;
   notSignedInLastResult.hash = objectHash(notSignedInLastResult);
 }
@@ -107,8 +115,8 @@ export function startTest(now: number): boolean {
   TestTimer.clear();
   Monkey.show();
 
-  for (const fb of getActiveFunboxes()) {
-    fb.functions?.start?.();
+  for (const fb of getActiveFunboxesWithFunction("start")) {
+    fb.functions.start();
   }
 
   try {
@@ -249,6 +257,7 @@ export function restart(options = {} as RestartOptions): void {
   TestInput.restart();
   TestInput.corrected.reset();
   ShiftTracker.reset();
+  AltTracker.reset();
   Caret.hide();
   TestState.setActive(false);
   Replay.stopReplayRecording();
@@ -265,6 +274,7 @@ export function restart(options = {} as RestartOptions): void {
   MemoryFunboxTimer.reset();
   QuoteRateModal.clearQuoteStats();
   TestUI.reset();
+  CompositionState.setComposing(false);
 
   if (TestUI.resultVisible) {
     if (Config.randomTheme !== "off") {
@@ -329,8 +339,8 @@ export function restart(options = {} as RestartOptions): void {
       await init();
       await PaceCaret.init();
 
-      for (const fb of getActiveFunboxes()) {
-        fb.functions?.restart?.();
+      for (const fb of getActiveFunboxesWithFunction("restart")) {
+        fb.functions.restart();
       }
 
       if (Config.showAverage !== "off") {
@@ -391,9 +401,10 @@ export async function init(): Promise<void> {
   MonkeyPower.reset();
   Replay.stopReplayRecording();
   TestWords.words.reset();
-  TestUI.setActiveWordElementIndex(0);
+  TestState.setActiveWordIndex(0);
+  TestUI.setActiveWordElementOffset(0);
   TestInput.input.resetHistory();
-  TestInput.input.resetCurrent();
+  TestInput.input.current = "";
 
   let language;
   try {
@@ -459,10 +470,12 @@ export async function init(): Promise<void> {
     wordsHaveNewline = gen.hasNewline;
   } catch (e) {
     console.error(e);
-    if (e instanceof WordsGenerator.WordGenError) {
-      Notifications.add(e.message, 0, {
-        important: true,
-      });
+    if (e instanceof WordGenError) {
+      if (e.message.length > 0) {
+        Notifications.add(e.message, 0, {
+          important: true,
+        });
+      }
     } else {
       Notifications.add(
         Misc.createErrorMessage(e, "Failed to generate words"),
@@ -477,7 +490,7 @@ export async function init(): Promise<void> {
     return;
   }
 
-  const beforeHasNumbers = TestWords.hasNumbers ? true : false;
+  const beforeHasNumbers = TestWords.hasNumbers;
 
   let hasNumbers = false;
 
@@ -540,6 +553,11 @@ export function areAllTestWordsGenerated(): boolean {
 
 //add word during the test
 export async function addWord(): Promise<void> {
+  if (Config.mode === "zen") {
+    TestUI.appendEmptyWordElement();
+    return;
+  }
+
   let bound = 100; // how many extra words to aim for AFTER the current word
   const funboxToPush = getActiveFunboxes()
     .find((f) => f.properties?.find((fp) => fp.startsWith("toPush")))
@@ -547,7 +565,7 @@ export async function addWord(): Promise<void> {
   const toPushCount = funboxToPush?.split(":")[1];
   if (toPushCount !== undefined) bound = +toPushCount - 1;
 
-  if (TestWords.words.length - TestInput.input.history.length > bound) {
+  if (TestWords.words.length - TestInput.input.getHistory().length > bound) {
     console.debug("Not adding word, enough words already");
     return;
   }
@@ -555,13 +573,9 @@ export async function addWord(): Promise<void> {
     console.debug("Not adding word, all words generated");
     return;
   }
-
-  const sectionFunbox = getActiveFunboxes().find(
-    (f) => f.functions?.pullSection
-  );
-
-  if (sectionFunbox?.functions?.pullSection) {
-    if (TestWords.words.length - TestWords.words.currentIndex < 20) {
+  const sectionFunbox = findSingleActiveFunboxWithFunction("pullSection");
+  if (sectionFunbox) {
+    if (TestWords.words.length - TestState.activeWordIndex < 20) {
       const section = await sectionFunbox.functions.pullSection(
         Config.language
       );
@@ -840,7 +854,7 @@ export async function finish(difficultyFailed = false): Promise<void> {
   if (TestInput.input.current.length !== 0) {
     TestInput.input.pushHistory();
     TestInput.corrected.pushHistory();
-    Replay.replayGetWordsList(TestInput.input.history);
+    Replay.replayGetWordsList(TestInput.input.getHistory());
   }
 
   TestInput.forceKeyup(now); //this ensures that the last keypress(es) are registered
@@ -919,13 +933,11 @@ export async function finish(difficultyFailed = false): Promise<void> {
   //fail checks
   const dateDur = (TestStats.end3 - TestStats.start3) / 1000;
   if (
-    Config.mode !== "zen" &&
+    Config.mode === "time" &&
     !TestState.bailedOut &&
-    (ce.testDuration < dateDur - 0.25 || ce.testDuration > dateDur + 0.25)
+    (ce.testDuration < dateDur - 0.1 || ce.testDuration > dateDur + 0.1) &&
+    ce.testDuration <= 120
   ) {
-    //dont bother checking this for zen mode or bailed out tests because
-    //the duration might be modified to remove trailing afk time
-    //its also not a big deal if the duration is off in those tests
     Notifications.add("Test invalid - inconsistent test duration", 0);
     console.error("Test duration inconsistent", ce.testDuration, dateDur);
     TestStats.setInvalid();
@@ -1007,6 +1019,7 @@ export async function finish(difficultyFailed = false): Promise<void> {
     if (tt < 0) tt = 0;
     const acc = completedEvent.acc;
     TestStats.incrementIncompleteSeconds(tt);
+    TestStats.incrementRestartCount();
     TestStats.pushIncompleteTest(acc, tt);
   }
 
@@ -1016,7 +1029,7 @@ export async function finish(difficultyFailed = false): Promise<void> {
     // Let's update the custom text progress
     if (
       TestState.bailedOut ||
-      TestInput.input.history.length < TestWords.words.length
+      TestInput.input.getHistory().length < TestWords.words.length
     ) {
       // They bailed out
 
@@ -1197,7 +1210,7 @@ async function saveResult(
     // into a snapshot result - might not cuase issues but worth investigating
     const result = Misc.deepClone(
       completedEvent
-    ) as unknown as DB.SnapshotResult<Mode>;
+    ) as unknown as SnapshotResult<Mode>;
     result._id = data.insertedId;
     if (data.isPb !== undefined && data.isPb) {
       result.isPb = true;
@@ -1421,9 +1434,8 @@ ConfigEvent.subscribe((eventKey, eventValue, nosave) => {
       restart();
     }
     if (eventKey === "difficulty" && !nosave) restart();
-    if (eventKey === "showAllLines" && !nosave) restart();
     if (
-      eventKey === "customLayoutFluid" &&
+      eventKey === "customLayoutfluid" &&
       Config.funbox.includes("layoutfluid")
     ) {
       restart();

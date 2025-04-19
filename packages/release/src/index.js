@@ -11,12 +11,12 @@ const __dirname = dirname(__filename);
 
 dotenv.config();
 
-const args = process.argv.slice(2);
-const isFrontend = args.includes("--fe");
-const noDeploy = args.includes("--no-deploy");
-const isBackend = args.includes("--be");
-const isDryRun = args.includes("--dry");
-const noSyncCheck = args.includes("--no-sync-check");
+const args = new Set(process.argv.slice(2));
+const isFrontend = args.has("--fe");
+const noDeploy = args.has("--no-deploy");
+const isBackend = args.has("--be");
+const isDryRun = args.has("--dry");
+const noSyncCheck = args.has("--no-sync-check");
 
 const PROJECT_ROOT = path.resolve(__dirname, "../../../");
 
@@ -30,7 +30,7 @@ const runCommand = (command, force) => {
       return output;
     } catch (error) {
       console.error(`Error executing command ${command}`);
-      console.error(error);
+      console.error(error.output.toString());
       process.exit(1);
     }
   }
@@ -55,6 +55,17 @@ const runProjectRootCommand = (command, force) => {
 };
 
 const checkBranchSync = () => {
+  console.log("Checking if local branch is master...");
+  const currentBranch = runProjectRootCommand(
+    "git branch --show-current"
+  ).trim();
+  if (currentBranch !== "master") {
+    console.error(
+      "Local branch is not master. Please checkout the master branch."
+    );
+    process.exit(1);
+  }
+
   console.log("Checking if local master branch is in sync with origin...");
 
   if (noSyncCheck) {
@@ -99,13 +110,13 @@ const getCurrentVersion = () => {
 const incrementVersion = (currentVersion) => {
   console.log("Incrementing version...");
   const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
+  const year = Number(now.getFullYear().toString().slice(-2));
   const start = new Date(now.getFullYear(), 0, 1);
   const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
   const [prevYear, prevWeek, minor] = currentVersion.split(".").map(Number);
 
   let newMinor = minor + 1;
-  if (year != prevYear || week != prevWeek) {
+  if (year !== prevYear || week !== prevWeek) {
     newMinor = 0;
   }
 

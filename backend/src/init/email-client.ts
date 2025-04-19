@@ -44,15 +44,18 @@ export async function init(): Promise<void> {
       Logger.warning(
         "No email client configuration provided. Running without email."
       );
-      return;
+    } else if (process.env["BYPASS_EMAILCLIENT"] === "true") {
+      Logger.warning("BYPASS_EMAILCLIENT is enabled! Running without email.");
+    } else {
+      throw new Error("No email client configuration provided");
     }
-    throw new Error("No email client configuration provided");
+    return;
   }
 
   try {
     transporter = nodemailer.createTransport({
       host: EMAIL_HOST,
-      secure: EMAIL_PORT === "465" ? true : false,
+      secure: EMAIL_PORT === "465",
       port: parseInt(EMAIL_PORT ?? "578", 10),
       auth: {
         user: EMAIL_USER,

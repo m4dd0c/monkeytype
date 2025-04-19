@@ -37,6 +37,8 @@ import {
   AddResultRequest,
   AddResultResponse,
   GetLastResultResponse,
+  GetResultByIdPath,
+  GetResultByIdResponse,
   GetResultsQuery,
   GetResultsResponse,
   UpdateResultTagsRequest,
@@ -131,12 +133,22 @@ export async function getResults(
   return new MonkeyResponse("Results retrieved", results.map(convertResult));
 }
 
+export async function getResultById(
+  req: MonkeyRequest<undefined, undefined, GetResultByIdPath>
+): Promise<GetResultByIdResponse> {
+  const { uid } = req.ctx.decodedToken;
+  const { resultId } = req.params;
+
+  const result = await ResultDAL.getResult(uid, resultId);
+  return new MonkeyResponse("Result retrieved", convertResult(result));
+}
+
 export async function getLastResult(
   req: MonkeyRequest
 ): Promise<GetLastResultResponse> {
   const { uid } = req.ctx.decodedToken;
-  const results = await ResultDAL.getLastResult(uid);
-  return new MonkeyResponse("Result retrieved", convertResult(results));
+  const result = await ResultDAL.getLastResult(uid);
+  return new MonkeyResponse("Result retrieved", convertResult(result));
 }
 
 export async function deleteAll(req: MonkeyRequest): Promise<MonkeyResponse> {
@@ -437,7 +449,12 @@ export async function addResult(
 
   if (completedEvent.mode === "time" && completedEvent.mode2 === "60") {
     void UserDAL.incrementBananas(uid, completedEvent.wpm);
-    if (isPb && user.discordId !== undefined && user.discordId !== "") {
+    if (
+      isPb &&
+      user.discordId !== undefined &&
+      user.discordId !== "" &&
+      user.lbOptOut !== true
+    ) {
       void GeorgeQueue.updateDiscordRole(user.discordId, completedEvent.wpm);
     }
   }
@@ -588,6 +605,7 @@ export async function addResult(
           discordId: user.discordId,
           badgeId: selectedBadgeId,
           lastActivityTimestamp: Date.now(),
+          isPremium,
         },
         xpGained: xpGained.xp,
         timeTypedSeconds: totalDurationTypedSeconds,

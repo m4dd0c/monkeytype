@@ -29,14 +29,14 @@ const customTextLongLS = new LocalStorageWithSchema({
   fallback: {},
 });
 
-const CustomTextSettingsSchema = z.object({
+export const CustomTextSettingsSchema = z.object({
   text: z.array(z.string()),
   mode: CustomTextModeSchema,
   limit: z.object({ value: z.number(), mode: CustomTextLimitModeSchema }),
   pipeDelimiter: z.boolean(),
 });
 
-type CustomTextSettings = z.infer<typeof CustomTextSettingsSchema>;
+export type CustomTextSettings = z.infer<typeof CustomTextSettingsSchema>;
 
 type CustomTextLimit = z.infer<typeof CustomTextSettingsSchema>["limit"];
 
@@ -168,7 +168,7 @@ export function setCustomText(
   name: string,
   text: string | string[],
   long = false
-): void {
+): boolean {
   if (long) {
     const customText = getLocalStorageLong();
 
@@ -188,7 +188,7 @@ export function setCustomText(
       textByName.text = text.join(" ");
     }
 
-    setLocalStorageLong(customText);
+    return setLocalStorageLong(customText);
   } else {
     const customText = getLocalStorage();
 
@@ -198,7 +198,7 @@ export function setCustomText(
       customText[name] = text.join(" ");
     }
 
-    setLocalStorage(customText);
+    return setLocalStorage(customText);
   }
 }
 
@@ -242,12 +242,12 @@ function getLocalStorageLong(): CustomTextLongObject {
   return customTextLongLS.get();
 }
 
-function setLocalStorage(data: CustomTextObject): void {
-  customTextLS.set(data);
+function setLocalStorage(data: CustomTextObject): boolean {
+  return customTextLS.set(data);
 }
 
-function setLocalStorageLong(data: CustomTextLongObject): void {
-  customTextLongLS.set(data);
+function setLocalStorageLong(data: CustomTextLongObject): boolean {
+  return customTextLongLS.set(data);
 }
 
 export function getCustomTextNames(long = false): string[] {

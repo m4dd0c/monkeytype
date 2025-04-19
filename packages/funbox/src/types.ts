@@ -10,6 +10,7 @@ export type FunboxName =
   | "arrows"
   | "rAnDoMcAsE"
   | "capitals"
+  | "layout_mirror"
   | "layoutfluid"
   | "earthquake"
   | "space_balls"
@@ -40,7 +41,8 @@ export type FunboxName =
   | "ddoouubblleedd"
   | "instant_messaging"
   | "underscore_spaces"
-  | "ALL_CAPS";
+  | "ALL_CAPS"
+  | "polyglot";
 
 export type FunboxForcedConfig = Record<string, string[] | boolean[]>;
 
@@ -62,7 +64,10 @@ export type FunboxProperty =
   | "noInfiniteDuration"
   | "noLigatures"
   | `toPush:${number}`
-  | "wordOrder:reverse";
+  | "wordOrder:reverse"
+  | "ignoreReducedMotion";
+
+type FunboxCSSModification = "typingTest" | "words" | "body" | "main";
 
 export type FunboxMetadata = {
   name: FunboxName;
@@ -73,4 +78,5 @@ export type FunboxMetadata = {
   frontendFunctions?: string[];
   difficultyLevel: number;
   canGetPb: boolean;
+  cssModifications?: FunboxCSSModification[];
 };

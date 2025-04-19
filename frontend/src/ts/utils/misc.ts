@@ -7,7 +7,6 @@ import {
   Mode2,
   PersonalBests,
 } from "@monkeytype/contracts/schemas/shared";
-import { ZodError, ZodSchema } from "zod";
 import {
   CustomTextDataWithTextLen,
   Result,
@@ -152,7 +151,7 @@ export function toggleFullscreen(): void {
     } else if (elem.mozRequestFullScreen) {
       void elem.mozRequestFullScreen();
     } else if (elem.webkitRequestFullscreen) {
-      // @ts-expect-error
+      // @ts-expect-error some code i found online
       void elem.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
     }
   } else {
@@ -249,6 +248,8 @@ type LastIndex = {
   lastIndexOfRegex(regex: RegExp): number;
 } & string;
 
+// TODO INVESTIGATE IF THIS IS NEEDED
+// eslint-disable-next-line no-extend-native
 (String.prototype as LastIndex).lastIndexOfRegex = function (
   regex: RegExp
 ): number {
@@ -655,28 +656,12 @@ export function isObject(obj: unknown): obj is Record<string, unknown> {
   return typeof obj === "object" && !Array.isArray(obj) && obj !== null;
 }
 
-/**
- * Parse a JSON string into an object and validate it against a schema
- * @param input  JSON string
- * @param schema  Zod schema to validate the JSON against
- * @returns  The parsed JSON object
- */
-export function parseJsonWithSchema<T>(input: string, schema: ZodSchema<T>): T {
-  try {
-    const jsonParsed = JSON.parse(input) as unknown;
-    const zodParsed = schema.parse(jsonParsed);
-    return zodParsed;
-  } catch (error) {
-    if (error instanceof ZodError) {
-      throw new Error(error.errors.map((err) => err.message).join("\n"));
-    } else {
-      throw error;
-    }
-  }
-}
-
+// oxlint doesnt understand ts overloading
+// eslint-disable-next-line no-redeclare
 export function deepClone<T>(obj: T[]): T[];
+// eslint-disable-next-line no-redeclare
 export function deepClone<T extends object>(obj: T): T;
+// eslint-disable-next-line no-redeclare
 export function deepClone<T>(obj: T): T;
 export function deepClone<T>(obj: T | T[]): T | T[] {
   // Check if the value is a primitive (not an object or array)
@@ -712,6 +697,24 @@ export function prefersReducedMotion(): boolean {
  */
 export function applyReducedMotion(animationTime: number): number {
   return prefersReducedMotion() ? 0 : animationTime;
+}
+
+/**
+ * Creates a promise with resolvers.
+ * This is useful for creating a promise that can be resolved or rejected from outside the promise itself.
+ */
+export function promiseWithResolvers<T = void>(): {
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+  promise: Promise<T>;
+} {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { resolve, reject, promise };
 }
 
 // DO NOT ALTER GLOBAL OBJECTSONSTRUCTOR, IT WILL BREAK RESULT HASHES

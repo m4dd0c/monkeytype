@@ -12,11 +12,19 @@ import * as QuoteReportModal from "../modals/quote-report";
 import * as QuoteSearchModal from "../modals/quote-search";
 import * as CustomTextModal from "../modals/custom-text";
 import * as PractiseWordsModal from "../modals/practise-words";
+import { navigate } from "../controllers/route-controller";
+import { getMode2 } from "../utils/misc";
 
 $(".pageTest").on("click", "#testModesNotice .textButton", async (event) => {
   const attr = $(event.currentTarget).attr("commands");
   if (attr === undefined) return;
   (await getCommandline()).show({ subgroupOverride: attr });
+});
+
+$(".pageTest").on("click", "#testModesNotice .textButton", async (event) => {
+  const attr = $(event.currentTarget).attr("commandId");
+  if (attr === undefined) return;
+  (await getCommandline()).show({ commandOverride: attr });
 });
 
 $(".pageTest").on("click", "#testConfig .wordCount .textButton", (e) => {
@@ -83,4 +91,13 @@ $(".pageTest").on("click", "#practiseWordsButton", () => {
     return;
   }
   PractiseWordsModal.show();
+});
+
+$(".pageTest #dailyLeaderboardRank").on("click", async () => {
+  navigate(
+    `/leaderboards?type=daily&language=${Config.language}&mode2=${getMode2(
+      Config,
+      null
+    )}&goToUserPage=true`
+  );
 });

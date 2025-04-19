@@ -22,7 +22,7 @@ import * as Skeleton from "../utils/skeleton";
 import * as CustomBackgroundFilter from "../elements/custom-background-filter";
 import {
   ConfigValue,
-  CustomLayoutFluid,
+  CustomBackgroundSchema,
 } from "@monkeytype/contracts/schemas/configs";
 import {
   getAllFunboxes,
@@ -30,8 +30,14 @@ import {
   checkCompatibility,
 } from "@monkeytype/funbox";
 import { getActiveFunboxNames } from "../test/funbox/list";
+import { SnapshotPreset } from "../constants/default-snapshot";
+import { LayoutsList } from "../constants/layouts";
+import { DataArrayPartial, Optgroup } from "slim-select/store";
 
 type SettingsGroups<T extends ConfigValue> = Record<string, SettingsGroup<T>>;
+
+let customLayoutFluidSelect: SlimSelect | undefined;
+let customPolyglotSelect: SlimSelect | undefined;
 
 export const groups: SettingsGroups<ConfigValue> = {};
 
@@ -379,6 +385,11 @@ async function initGroups(): Promise<void> {
     UpdateConfig.setTapeMode,
     "button"
   ) as SettingsGroup<ConfigValue>;
+  groups["tapeMargin"] = new SettingsGroup(
+    "tapeMargin",
+    UpdateConfig.setTapeMargin,
+    "button"
+  ) as SettingsGroup<ConfigValue>;
   groups["timerOpacity"] = new SettingsGroup(
     "timerOpacity",
     UpdateConfig.setTimerOpacity,
@@ -425,10 +436,6 @@ async function initGroups(): Promise<void> {
     UpdateConfig.setCustomBackgroundSize,
     "button"
   ) as SettingsGroup<ConfigValue>;
-  // groups.customLayoutfluid = new SettingsGroup(
-  //   "customLayoutfluid",
-  //   UpdateConfig.setCustomLayoutfluid
-  // );
 }
 
 function reset(): void {
@@ -438,7 +445,7 @@ function reset(): void {
   $(".pageSettings .section[data-config-name='funbox'] .buttons").empty();
   $(".pageSettings .section[data-config-name='fontFamily'] .buttons").empty();
   for (const select of document.querySelectorAll(".pageSettings select")) {
-    //@ts-expect-error
+    //@ts-expect-error slim gets added to the html element but ts doesnt know about it
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
     select?.slim?.destroy?.();
   }
@@ -470,32 +477,16 @@ async function fillSettingsPage(): Promise<void> {
     ".pageSettings .section[data-config-name='language'] select"
   ) as Element;
 
-  let html = "";
-  if (languageGroups) {
-    for (const group of languageGroups) {
-      html += `<optgroup label="${group.name}">`;
-      for (const language of group.languages) {
-        const selected = language === Config.language ? "selected" : "";
-        const text = Strings.getLanguageDisplayString(language);
-        html += `<option value="${language}" ${selected}>${text}</option>`;
-      }
-      html += `</optgroup>`;
-    }
-  }
-  element.innerHTML = html;
   new SlimSelect({
     select: element,
+    data: getLanguageDropdownData(
+      languageGroups ?? [],
+      (language) => language === Config.language
+    ),
     settings: {
       searchPlaceholder: "search",
     },
   });
-
-  let layoutsList;
-  try {
-    layoutsList = await JSONData.getLayoutsList();
-  } catch (e) {
-    console.error(Misc.createErrorMessage(e, "Failed to refresh keymap"));
-  }
 
   const layoutSelectElement = document.querySelector(
     ".pageSettings .section[data-config-name='layout'] select"
@@ -507,18 +498,16 @@ async function fillSettingsPage(): Promise<void> {
   let layoutHtml = '<option value="default">off</option>';
   let keymapLayoutHtml = '<option value="overrideSync">emulator sync</option>';
 
-  if (layoutsList) {
-    for (const layout of Object.keys(layoutsList)) {
-      const optionHtml = `<option value="${layout}">${layout.replace(
-        /_/g,
-        " "
-      )}</option>`;
-      if (layout.toString() !== "korean") {
-        layoutHtml += optionHtml;
-      }
-      if (layout.toString() !== "default") {
-        keymapLayoutHtml += optionHtml;
-      }
+  for (const layout of LayoutsList) {
+    const optionHtml = `<option value="${layout}">${layout.replace(
+      /_/g,
+      " "
+    )}</option>`;
+    if (layout.toString() !== "korean") {
+      layoutHtml += optionHtml;
+    }
+    if (layout.toString() !== "default") {
+      keymapLayoutHtml += optionHtml;
     }
   }
 
@@ -690,8 +679,37 @@ async function fillSettingsPage(): Promise<void> {
     Config.keymapSize
   );
 
-  $(".pageSettings .section[data-config-name='customLayoutfluid'] input").val(
-    Config.customLayoutfluid.replace(/#/g, " ")
+  customLayoutFluidSelect = new SlimSelect({
+    select:
+      ".pageSettings .section[data-config-name='customLayoutfluid'] select",
+    settings: { keepOrder: true },
+    events: {
+      afterChange: (newVal): void => {
+        const customLayoutfluid = newVal.map((it) => it.value).join("#");
+        if (customLayoutfluid !== Config.customLayoutfluid) {
+          void UpdateConfig.setCustomLayoutfluid(customLayoutfluid);
+        }
+      },
+    },
+  });
+
+  customPolyglotSelect = new SlimSelect({
+    select: ".pageSettings .section[data-config-name='customPolyglot'] select",
+    data: getLanguageDropdownData(languageGroups ?? [], (language) =>
+      Config.customPolyglot.includes(language)
+    ),
+    events: {
+      afterChange: (newVal): void => {
+        const customPolyglot = newVal.map((it) => it.value);
+        if (customPolyglot.toSorted() !== Config.customPolyglot.toSorted()) {
+          void UpdateConfig.setCustomPolyglot(customPolyglot);
+        }
+      },
+    },
+  });
+
+  $(".pageSettings .section[data-config-name='tapeMargin'] input").val(
+    Config.tapeMargin
   );
 
   setEventDisabled(true);
@@ -784,7 +802,7 @@ function refreshTagsSettingsSection(): void {
 function refreshPresetsSettingsSection(): void {
   if (isAuthenticated() && DB.getSnapshot()) {
     const presetsEl = $(".pageSettings .section.presets .presetsList").empty();
-    DB.getSnapshot()?.presets?.forEach((preset: DB.SnapshotPreset) => {
+    DB.getSnapshot()?.presets?.forEach((preset: SnapshotPreset) => {
       presetsEl.append(`
       <div class="buttons preset" data-id="${preset._id}" data-name="${preset.name}" data-display="${preset.display}">
         <button class="presetButton">${preset.display}</button>
@@ -888,6 +906,20 @@ export async function update(groupUpdate = true): Promise<void> {
   $(".pageSettings .tip").html(`
     tip: You can also change all these settings quickly using the
     command line (<key>${commandKey}</key> or <key>${modifierKey}</key> + <key>shift</key> + <key>p</key>)`);
+
+  if (
+    customLayoutFluidSelect !== undefined &&
+    customLayoutFluidSelect.getSelected().join("#") !== Config.customLayoutfluid
+  ) {
+    customLayoutFluidSelect.setData(getLayoutfluidDropdownData());
+  }
+
+  if (
+    customPolyglotSelect !== undefined &&
+    customPolyglotSelect.getSelected() !== Config.customPolyglot
+  ) {
+    customPolyglotSelect.setSelected(Config.customPolyglot);
+  }
 }
 function toggleSettingsGroup(groupName: string): void {
   const groupEl = $(`.pageSettings .settingsGroup.${groupName}`);
@@ -1098,11 +1130,21 @@ $(".pageSettings .sectionGroupTitle").on("click", (e) => {
 $(
   ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton button.save"
 ).on("click", () => {
-  UpdateConfig.setCustomBackground(
-    $(
-      ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton input"
-    ).val() as string
-  );
+  const newVal = $(
+    ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton input"
+  ).val() as string;
+
+  const parsed = CustomBackgroundSchema.safeParse(newVal);
+
+  if (!parsed.success) {
+    Notifications.add(
+      `Invalid custom background URL (${parsed.error.issues[0]?.message})`,
+      0
+    );
+    return;
+  }
+
+  UpdateConfig.setCustomBackground(newVal);
 });
 
 $(
@@ -1115,11 +1157,21 @@ $(
   ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton input"
 ).on("keypress", (e) => {
   if (e.key === "Enter") {
-    UpdateConfig.setCustomBackground(
-      $(
-        ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton input"
-      ).val() as string
-    );
+    const newVal = $(
+      ".pageSettings .section[data-config-name='customBackgroundSize'] .inputAndButton input"
+    ).val() as string;
+
+    const parsed = CustomBackgroundSchema.safeParse(newVal);
+
+    if (!parsed.success) {
+      Notifications.add(
+        `Invalid custom background URL (${parsed.error.issues[0]?.message})`,
+        0
+      );
+      return;
+    }
+
+    UpdateConfig.setCustomBackground(newVal);
   }
 });
 
@@ -1148,6 +1200,42 @@ $(
       parseFloat(
         $(
           ".pageSettings .section[data-config-name='fontSize'] .inputAndButton input"
+        ).val() as string
+      )
+    );
+    if (didConfigSave) {
+      Notifications.add("Saved", 1, {
+        duration: 1,
+      });
+    }
+  }
+});
+
+$(
+  ".pageSettings .section[data-config-name='tapeMargin'] .inputAndButton button.save"
+).on("click", () => {
+  const didConfigSave = UpdateConfig.setTapeMargin(
+    parseFloat(
+      $(
+        ".pageSettings .section[data-config-name='tapeMargin'] .inputAndButton input"
+      ).val() as string
+    )
+  );
+  if (didConfigSave) {
+    Notifications.add("Saved", 1, {
+      duration: 1,
+    });
+  }
+});
+
+$(
+  ".pageSettings .section[data-config-name='tapeMargin'] .inputAndButton input"
+).on("keypress", (e) => {
+  if (e.key === "Enter") {
+    const didConfigSave = UpdateConfig.setTapeMargin(
+      parseFloat(
+        $(
+          ".pageSettings .section[data-config-name='tapeMargin'] .inputAndButton input"
         ).val() as string
       )
     );
@@ -1265,36 +1353,6 @@ $(
   }
 });
 
-$(
-  ".pageSettings .section[data-config-name='customLayoutfluid'] .inputAndButton button.save"
-).on("click", () => {
-  void UpdateConfig.setCustomLayoutfluid(
-    $(
-      ".pageSettings .section[data-config-name='customLayoutfluid'] .inputAndButton input"
-    ).val() as CustomLayoutFluid
-  ).then((bool) => {
-    if (bool) {
-      Notifications.add("Custom layoutfluid saved", 1);
-    }
-  });
-});
-
-$(
-  ".pageSettings .section[data-config-name='customLayoutfluid'] .inputAndButton .input"
-).on("keypress", (e) => {
-  if (e.key === "Enter") {
-    void UpdateConfig.setCustomLayoutfluid(
-      $(
-        ".pageSettings .section[data-config-name='customLayoutfluid'] .inputAndButton input"
-      ).val() as CustomLayoutFluid
-    ).then((bool) => {
-      if (bool) {
-        Notifications.add("Custom layoutfluid saved", 1);
-      }
-    });
-  }
-});
-
 $(".pageSettings .quickNav .links a").on("click", (e) => {
   const settingsGroup = e.target.innerText;
   const isClosed = $(`.pageSettings .settingsGroup.${settingsGroup}`).hasClass(
@@ -1308,6 +1366,35 @@ $(".pageSettings .quickNav .links a").on("click", (e) => {
 let configEventDisabled = false;
 export function setEventDisabled(value: boolean): void {
   configEventDisabled = value;
+}
+
+function getLanguageDropdownData(
+  languageGroups: JSONData.LanguageGroup[],
+  isActive: (val: string) => boolean
+): DataArrayPartial {
+  return languageGroups.map(
+    (group) =>
+      ({
+        label: group.name,
+        options: group.languages.map((language) => ({
+          text: Strings.getLanguageDisplayString(language),
+          value: language,
+          selected: isActive(language),
+        })),
+      } as Optgroup)
+  );
+}
+
+function getLayoutfluidDropdownData(): DataArrayPartial {
+  const customLayoutfluidActive = Config.customLayoutfluid.split("#");
+  return [
+    ...customLayoutfluidActive,
+    ...LayoutsList.filter((it) => !customLayoutfluidActive.includes(it)),
+  ].map((layout) => ({
+    text: layout.replace(/_/g, " "),
+    value: layout,
+    selected: customLayoutfluidActive.includes(layout),
+  }));
 }
 
 ConfigEvent.subscribe((eventKey, eventValue) => {
@@ -1330,7 +1417,7 @@ ConfigEvent.subscribe((eventKey, eventValue) => {
 });
 
 export const page = new Page({
-  name: "settings",
+  id: "settings",
   element: $(".page.pageSettings"),
   path: "/settings",
   afterHide: async (): Promise<void> => {

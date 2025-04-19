@@ -10,6 +10,7 @@ import * as PageLoading from "../pages/loading";
 import * as PageProfile from "../pages/profile";
 import * as PageProfileSearch from "../pages/profile-search";
 import * as Page404 from "../pages/404";
+import * as PageLeaderboards from "../pages/leaderboards";
 import * as PageAccountSettings from "../pages/account-settings";
 import * as PageTransition from "../states/page-transition";
 import * as AdController from "../controllers/ad-controller";
@@ -60,6 +61,7 @@ export async function change(
       profileSearch: PageProfileSearch.page,
       404: Page404.page,
       accountSettings: PageAccountSettings.page,
+      leaderboards: PageLeaderboards.page,
     };
 
     const previousPage = pages[ActivePage.get()];
@@ -80,20 +82,20 @@ export async function change(
           void AdController.reinstate();
         },
         async () => {
-          if (nextPage.name === "test") {
+          if (nextPage.id === "test") {
             Misc.updateTitle();
           } else {
-            Misc.updateTitle(
-              Strings.capitalizeFirstLetterOfEachWord(nextPage.name) +
-                " | Monkeytype"
-            );
+            const titleString =
+              nextPage.display ??
+              Strings.capitalizeFirstLetterOfEachWord(nextPage.id);
+            Misc.updateTitle(`${titleString} | Monkeytype`);
           }
           Focus.set(false);
-          ActivePage.set(nextPage.name);
+          ActivePage.set(nextPage.id);
           await previousPage?.afterHide();
           await nextPage?.beforeShow({
             params: options.params,
-            //@ts-expect-error
+            // @ts-expect-error for the future (i think)
             data: options.data,
           });
         }

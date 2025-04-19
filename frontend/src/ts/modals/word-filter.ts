@@ -7,6 +7,7 @@ import AnimatedModal, {
   HideOptions,
   ShowOptions,
 } from "../utils/animated-modal";
+import { LayoutsList } from "../constants/layouts";
 
 type FilterPreset = {
   display: string;
@@ -103,7 +104,6 @@ async function initSelectOptions(): Promise<void> {
   $("wordFilterModal .presetInput").empty();
 
   let LanguageList;
-  let LayoutList;
 
   try {
     LanguageList = await JSONData.getLanguageList();
@@ -117,18 +117,6 @@ async function initSelectOptions(): Promise<void> {
     return;
   }
 
-  try {
-    LayoutList = await JSONData.getLayoutsList();
-  } catch (e) {
-    console.error(
-      Misc.createErrorMessage(
-        e,
-        "Failed to initialise word filter popup preset list"
-      )
-    );
-    return;
-  }
-
   LanguageList.forEach((language) => {
     const prettyLang = language.replace(/_/gi, " ");
     $("#wordFilterModal .languageInput").append(`
@@ -136,7 +124,7 @@ async function initSelectOptions(): Promise<void> {
       `);
   });
 
-  for (const layout in LayoutList) {
+  for (const layout of LayoutsList) {
     const prettyLayout = layout.replace(/_/gi, " ");
     $("#wordFilterModal .layoutInput").append(`
       <option value=${layout}>${prettyLayout}</option>
@@ -185,14 +173,6 @@ export async function show(showOptions?: ShowOptions): Promise<void> {
 function hide(hideOptions?: HideOptions<OutgoingData>): void {
   void modal.hide({
     ...hideOptions,
-    afterAnimation: async () => {
-      languageSelect?.destroy();
-      layoutSelect?.destroy();
-      presetSelect?.destroy();
-      languageSelect = undefined;
-      layoutSelect = undefined;
-      presetSelect = undefined;
-    },
   });
 }
 
@@ -326,6 +306,15 @@ async function setup(): Promise<void> {
   });
 }
 
+async function cleanup(): Promise<void> {
+  languageSelect?.destroy();
+  layoutSelect?.destroy();
+  presetSelect?.destroy();
+  languageSelect = undefined;
+  layoutSelect = undefined;
+  presetSelect = undefined;
+}
+
 type OutgoingData = {
   text: string;
   set: boolean;
@@ -334,4 +323,5 @@ type OutgoingData = {
 const modal = new AnimatedModal<unknown, OutgoingData>({
   dialogId: "wordFilterModal",
   setup,
+  cleanup,
 });

@@ -69,11 +69,11 @@ function applyQuoteLengthFilter(quotes: Quote[]): Quote[] {
     return quotes;
   }
 
-  const quoteLengthFilter = quoteLengthFilterValue.map((filterValue) =>
-    parseInt(filterValue, 10)
+  const quoteLengthFilter = new Set(
+    quoteLengthFilterValue.map((filterValue) => parseInt(filterValue, 10))
   );
   const filteredQuotes = quotes.filter((quote) =>
-    quoteLengthFilter.includes(quote.group)
+    quoteLengthFilter.has(quote.group)
   );
 
   return filteredQuotes;
@@ -312,10 +312,6 @@ export async function show(showOptions?: ShowOptions): Promise<void> {
 function hide(clearChain = false): void {
   void modal.hide({
     clearModalChain: clearChain,
-    afterAnimation: async () => {
-      lengthSelect?.destroy();
-      lengthSelect = undefined;
-    },
   });
 }
 
@@ -456,7 +452,13 @@ async function setup(modalEl: HTMLElement): Promise<void> {
   });
 }
 
+async function cleanup(): Promise<void> {
+  lengthSelect?.destroy();
+  lengthSelect = undefined;
+}
+
 const modal = new AnimatedModal({
   dialogId: "quoteSearchModal",
   setup,
+  cleanup,
 });

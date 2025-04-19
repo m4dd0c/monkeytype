@@ -9,6 +9,8 @@ import "./event-handlers/test";
 import "./event-handlers/about";
 import "./event-handlers/settings";
 import "./event-handlers/account";
+import "./event-handlers/leaderboards";
+import "./event-handlers/login";
 
 import "./modals/google-sign-up";
 
@@ -33,7 +35,6 @@ import "./controllers/route-controller";
 import "./pages/about";
 import "./elements/scroll-to-top";
 import * as Account from "./pages/account";
-import "./elements/leaderboards";
 import "./elements/no-css";
 import { egVideoListener } from "./popups/video-ad-popup";
 import "./states/connection";
@@ -47,7 +48,7 @@ import { getDevOptionsModal } from "./utils/async-modules";
 
 function addToGlobal(items: Record<string, unknown>): void {
   for (const [name, item] of Object.entries(items)) {
-    //@ts-expect-error
+    //@ts-expect-error dev
     window[name] = item;
   }
 }

@@ -48,6 +48,8 @@ import { navigate } from "./route-controller";
 import { FirebaseError } from "firebase/app";
 import * as PSA from "../elements/psa";
 import defaultResultFilters from "../constants/default-result-filters";
+import { getActiveFunboxesWithFunction } from "../test/funbox/list";
+import { Snapshot } from "../constants/default-snapshot";
 
 export const gmailProvider = new GoogleAuthProvider();
 export const githubProvider = new GithubAuthProvider();
@@ -123,7 +125,7 @@ async function getDataAndInit(): Promise<boolean> {
     LoadingPage.updateBar(45);
   }
   LoadingPage.updateText("Applying settings...");
-  const snapshot = DB.getSnapshot() as DB.Snapshot;
+  const snapshot = DB.getSnapshot() as Snapshot;
   AccountButton.update(snapshot);
   Alerts.setNotificationBubbleVisible(snapshot.inboxUnreadSize > 0);
   showFavoriteQuoteLength();
@@ -171,6 +173,11 @@ async function getDataAndInit(): Promise<boolean> {
     );
     await UpdateConfig.apply(snapshot.config);
     UpdateConfig.saveFullConfigToLocalStorage(true);
+
+    //funboxes might be different and they wont activate on the account page
+    for (const fb of getActiveFunboxesWithFunction("applyGlobalCSS")) {
+      fb.functions.applyGlobalCSS();
+    }
   }
   AccountButton.loading(false);
   TagController.loadActiveFromLocalStorage();
@@ -219,7 +226,7 @@ async function readyFunction(
   console.debug(`account controller ready`);
   if (authInitialisedAndConnected) {
     void PSA.show();
-    console.debug(`auth state changed, user ${user ? true : false}`);
+    console.debug(`auth state changed, user ${user ? "true" : "false"}`);
     console.debug(user);
     if (user) {
       await loadUser(user);
@@ -485,7 +492,7 @@ async function signUp(): Promise<void> {
     });
     return;
   }
-  RegisterCaptchaModal.show();
+  await RegisterCaptchaModal.show();
   const captchaToken = await RegisterCaptchaModal.promise;
   if (captchaToken === undefined || captchaToken === "") {
     Notifications.add("Please complete the captcha", -1);

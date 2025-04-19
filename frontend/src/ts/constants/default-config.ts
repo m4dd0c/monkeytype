@@ -93,6 +93,7 @@ const obj = {
   customBackgroundSize: "cover",
   customBackgroundFilter: [0, 1, 1, 1],
   customLayoutfluid: "qwerty#dvorak#colemak",
+  customPolyglot: ["english", "spanish", "french", "german"],
   monkeyPowerLevel: "off",
   minBurst: "off",
   minBurstCustomSpeed: 100,
@@ -101,7 +102,10 @@ const obj = {
   lazyMode: false,
   showAverage: "off",
   tapeMode: "off",
+  tapeMargin: 50,
   maxLineWidth: 0,
 } as Config;
 
-export default deepClone(obj);
+export function getDefaultConfig(): Config {
+  return deepClone(obj);
+}

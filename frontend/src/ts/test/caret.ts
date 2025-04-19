@@ -51,7 +51,7 @@ function getTargetPositionLeft(
   fullWidthCaret: boolean,
   isLanguageRightToLeft: boolean,
   activeWordElement: HTMLElement,
-  underscoreAdded: boolean,
+  activeWordEmpty: boolean,
   currentWordNodeList: NodeListOf<Element>,
   fullWidthCaretWidth: number,
   wordLen: number,
@@ -101,13 +101,15 @@ function getTargetPositionLeft(
       }
     }
     result = activeWordElement.offsetLeft + positionOffsetToWord;
-    if (underscoreAdded && isLanguageRightToLeft)
+    if (activeWordEmpty && isLanguageRightToLeft)
       result += activeWordElement.offsetWidth;
   } else {
     const wordsWrapperWidth =
       $(document.querySelector("#wordsWrapper") as HTMLElement).width() ?? 0;
+    const tapeMargin = wordsWrapperWidth * (Config.tapeMargin / 100);
+
     result =
-      wordsWrapperWidth / 2 -
+      tapeMargin -
       (fullWidthCaret && isLanguageRightToLeft ? fullWidthCaretWidth : 0);
 
     if (Config.tapeMode === "word" && inputLen > 0) {
@@ -138,13 +140,10 @@ export async function updatePosition(noAnim = false): Promise<void> {
   const inputLen = splitIntoCharacters(TestInput.input.current).length;
   if (Config.mode === "zen") wordLen = inputLen;
   const activeWordEl = document?.querySelector("#words .active") as HTMLElement;
-  //insert temporary character so the caret will work in zen mode
-  const activeWordEmpty = activeWordEl?.children.length === 0;
-  if (activeWordEmpty) {
-    activeWordEl.insertAdjacentHTML(
-      "beforeend",
-      '<letter style="opacity: 0;">_</letter>'
-    );
+  let activeWordEmpty = false;
+  if (Config.mode === "zen") {
+    wordLen = inputLen;
+    if (inputLen === 0) activeWordEmpty = true;
   }
 
   const currentWordNodeList = activeWordEl?.querySelectorAll("letter");
@@ -220,13 +219,13 @@ export async function updatePosition(noAnim = false): Promise<void> {
   }
 
   const smoothCaretSpeed =
-    Config.smoothCaret == "off"
+    Config.smoothCaret === "off"
       ? 0
-      : Config.smoothCaret == "slow"
+      : Config.smoothCaret === "slow"
       ? 150
-      : Config.smoothCaret == "medium"
+      : Config.smoothCaret === "medium"
       ? 100
-      : Config.smoothCaret == "fast"
+      : Config.smoothCaret === "fast"
       ? 85
       : 0;
 
@@ -251,9 +250,6 @@ export async function updatePosition(noAnim = false): Promise<void> {
         behavior: prefersReducedMotion() ? "instant" : "smooth",
       });
     }
-  }
-  if (activeWordEmpty) {
-    activeWordEl?.replaceChildren();
   }
 }
 

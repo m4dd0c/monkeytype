@@ -21,6 +21,7 @@ import { deleteConfig } from "../../dal/config";
 import { verify } from "../../utils/captcha";
 import * as LeaderboardsDAL from "../../dal/leaderboards";
 import { purgeUserFromDailyLeaderboards } from "../../utils/daily-leaderboards";
+import { purgeUserFromXpLeaderboards } from "../../services/weekly-xp-leaderboard";
 import { v4 as uuidv4 } from "uuid";
 import { ObjectId } from "mongodb";
 import * as ReportDAL from "../../dal/report";
@@ -65,7 +66,7 @@ import {
   GetProfileQuery,
   GetProfileResponse,
   GetStatsResponse,
-  GetStreakResponseSchema,
+  GetStreakResponse,
   GetTagsResponse,
   GetTestActivityResponse,
   GetUserInboxResponse,
@@ -77,7 +78,7 @@ import {
   ReportUserRequest,
   SetStreakHourOffsetRequest,
   TagIdPathParams,
-  UpdateEmailRequestSchema,
+  UpdateEmailRequest,
   UpdateLeaderboardMemoryRequest,
   UpdatePasswordRequest,
   UpdateUserInboxRequest,
@@ -199,11 +200,20 @@ export async function sendVerificationEmail(
         );
       } else if (e.errorInfo.code === "auth/too-many-requests") {
         throw new MonkeyError(429, "Too many requests. Please try again later");
+      } else if (
+        e.errorInfo.code === "auth/internal-error" &&
+        e.errorInfo.message.toLowerCase().includes("too_many_attempts")
+      ) {
+        throw new MonkeyError(
+          429,
+          "Too many Firebase requests. Please try again later"
+        );
       } else {
         throw new MonkeyError(
           500,
           "Firebase failed to generate an email verification link: " +
-            e.errorInfo.message
+            e.errorInfo.message,
+          JSON.stringify(e)
         );
       }
     } else {
@@ -211,7 +221,7 @@ export async function sendVerificationEmail(
       if (message === undefined) {
         throw new MonkeyError(
           500,
-          "Firebase failed to generate an email verification link. Unknown error occured"
+          "Failed to generate an email verification link. Unknown error occured"
         );
       } else {
         if (message.toLowerCase().includes("too_many_attempts")) {
@@ -222,8 +232,7 @@ export async function sendVerificationEmail(
         } else {
           throw new MonkeyError(
             500,
-            "Firebase failed to generate an email verification link: " +
-              message,
+            "Failed to generate an email verification link: " + message,
             (e as Error).stack
           );
         }
@@ -238,7 +247,8 @@ export async function sendVerificationEmail(
 export async function sendForgotPasswordEmail(
   req: MonkeyRequest<undefined, ForgotPasswordEmailRequest>
 ): Promise<MonkeyResponse> {
-  const { email } = req.body;
+  const { email, captcha } = req.body;
+  await verifyCaptcha(captcha);
   await authSendForgotPasswordEmail(email);
   return new MonkeyResponse(
     "Password reset request received. If the email is valid, you will receive an email shortly.",
@@ -249,14 +259,26 @@ export async function sendForgotPasswordEmail(
 export async function deleteUser(req: MonkeyRequest): Promise<MonkeyResponse> {
   const { uid } = req.ctx.decodedToken;
 
-  const userInfo = await UserDAL.getPartialUser(uid, "delete user", [
-    "banned",
-    "name",
-    "email",
-    "discordId",
-  ]);
+  let userInfo:
+    | Pick<UserDAL.DBUser, "banned" | "name" | "email" | "discordId">
+    | undefined;
 
-  if (userInfo.banned === true) {
+  try {
+    userInfo = await UserDAL.getPartialUser(uid, "delete user", [
+      "banned",
+      "name",
+      "email",
+      "discordId",
+    ]);
+  } catch (e) {
+    if (e instanceof MonkeyError && e.status === 404) {
+      //userinfo was already deleted. We ignore this and still try to remove the  other data
+    } else {
+      throw e;
+    }
+  }
+
+  if (userInfo?.banned === true) {
     await BlocklistDal.add(userInfo);
   }
 
@@ -272,14 +294,26 @@ export async function deleteUser(req: MonkeyRequest): Promise<MonkeyResponse> {
       uid,
       req.ctx.configuration.dailyLeaderboards
     ),
+    purgeUserFromXpLeaderboards(
+      uid,
+      req.ctx.configuration.leaderboards.weeklyXp
+    ),
   ]);
 
-  //delete user from
-  await AuthUtil.deleteUser(uid);
+  try {
+    //delete user from firebase
+    await AuthUtil.deleteUser(uid);
+  } catch (e) {
+    if (isFirebaseError(e) && e.errorInfo.code === "auth/user-not-found") {
+      //user was already deleted, ok to ignore
+    } else {
+      throw e;
+    }
+  }
 
   void addImportantLog(
     "user_deleted",
-    `${userInfo.email} ${userInfo.name}`,
+    `${userInfo?.email} ${userInfo?.name}`,
     uid
   );
 
@@ -309,6 +343,10 @@ export async function resetUser(req: MonkeyRequest): Promise<MonkeyResponse> {
       uid,
       req.ctx.configuration.dailyLeaderboards
     ),
+    purgeUserFromXpLeaderboards(
+      uid,
+      req.ctx.configuration.leaderboards.weeklyXp
+    ),
   ];
 
   if (userInfo.discordId !== undefined && userInfo.discordId !== "") {
@@ -325,6 +363,11 @@ export async function updateName(
 ): Promise<MonkeyResponse> {
   const { uid } = req.ctx.decodedToken;
   const { name } = req.body;
+
+  const blocklisted = await BlocklistDal.contains({ name });
+  if (blocklisted) {
+    throw new MonkeyError(409, "Username blocked");
+  }
 
   const user = await UserDAL.getPartialUser(uid, "update name", [
     "name",
@@ -377,6 +420,10 @@ export async function optOutOfLeaderboards(
     uid,
     req.ctx.configuration.dailyLeaderboards
   );
+  await purgeUserFromXpLeaderboards(
+    uid,
+    req.ctx.configuration.leaderboards.weeklyXp
+  );
   void addImportantLog("user_opted_out_of_leaderboards", "", uid);
 
   return new MonkeyResponse("User opted out of leaderboards", null);
@@ -397,12 +444,13 @@ export async function checkName(
 }
 
 export async function updateEmail(
-  req: MonkeyRequest<undefined, UpdateEmailRequestSchema>
+  req: MonkeyRequest<undefined, UpdateEmailRequest>
 ): Promise<MonkeyResponse> {
   const { uid } = req.ctx.decodedToken;
-  let { newEmail } = req.body;
+  let { newEmail, previousEmail } = req.body;
 
   newEmail = newEmail.toLowerCase();
+  previousEmail = previousEmail.toLowerCase();
 
   try {
     await AuthUtil.updateUserEmail(uid, newEmail);
@@ -435,7 +483,7 @@ export async function updateEmail(
 
   void addImportantLog(
     "user_email_updated",
-    `changed email to ${newEmail}`,
+    `changed email from ${previousEmail} to ${newEmail}`,
     uid
   );
 
@@ -604,6 +652,7 @@ export async function linkDiscord(
   const userInfo = await UserDAL.getPartialUser(uid, "link discord", [
     "banned",
     "discordId",
+    "lbOptOut",
   ]);
   if (userInfo.banned) {
     throw new MonkeyError(403, "Banned accounts cannot link with Discord");
@@ -642,7 +691,7 @@ export async function linkDiscord(
 
   await UserDAL.linkDiscord(uid, discordId, discordAvatar);
 
-  await GeorgeQueue.linkDiscord(discordId, uid);
+  await GeorgeQueue.linkDiscord(discordId, uid, userInfo.lbOptOut ?? false);
   void addImportantLog("user_discord_link", `linked to ${discordId}`, uid);
 
   return new MonkeyResponse("Discord account linked", {
@@ -1064,6 +1113,12 @@ async function getAllTimeLbs(uid: string): Promise<AllTimeLbs> {
     uid
   );
 
+  const allTime15EnglishCount = await LeaderboardsDAL.getCount(
+    "time",
+    "15",
+    "english"
+  );
+
   const allTime60English = await LeaderboardsDAL.getRank(
     "time",
     "60",
@@ -1071,20 +1126,26 @@ async function getAllTimeLbs(uid: string): Promise<AllTimeLbs> {
     uid
   );
 
+  const allTime60EnglishCount = await LeaderboardsDAL.getCount(
+    "time",
+    "60",
+    "english"
+  );
+
   const english15 =
-    allTime15English === false
+    allTime15English === false || allTime15English === null
       ? undefined
       : {
           rank: allTime15English.rank,
-          count: allTime15English.count,
+          count: allTime15EnglishCount,
         };
 
   const english60 =
-    allTime60English === false
+    allTime60English === false || allTime60English === null
       ? undefined
       : {
           rank: allTime60English.rank,
-          count: allTime60English.count,
+          count: allTime60EnglishCount,
         };
 
   return {
@@ -1185,7 +1246,7 @@ export async function getCurrentTestActivity(
 
 export async function getStreak(
   req: MonkeyRequest
-): Promise<GetStreakResponseSchema> {
+): Promise<GetStreakResponse> {
   const { uid } = req.ctx.decodedToken;
 
   const user = await UserDAL.getPartialUser(uid, "streak", ["streak"]);
