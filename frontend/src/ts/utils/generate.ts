@@ -12,6 +12,14 @@ export function getBinary(): string {
 }
 
 /**
+ * Generates a random binary string of length 8.
+ * @returns The generated binary string.
+ */
+export function getArabic(): string {
+  return getHexadecimal();
+}
+
+/**
  * Generates a random hexadecimal string between 1 and 8 bytes.
  * @returns The generated hexadecimal string.
  */
