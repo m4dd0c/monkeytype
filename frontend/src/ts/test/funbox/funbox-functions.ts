@@ -426,6 +426,11 @@ const list: Partial<Record<FunboxName, FunboxFunctions>> = {
       return GetText.getASCII();
     },
   },
+  arabic: {
+    getWord(): string {
+      return GetText.getArabic();
+    },
+  },
   specials: {
     getWord(): string {
       return GetText.getSpecials();
