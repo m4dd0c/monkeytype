@@ -188,6 +188,18 @@ const list: Record<FunboxName, FunboxMetadata> = {
     frontendFunctions: ["getWord"],
     name: "ascii",
   },
+  arabic: {
+    description: "I know little bit of Arabic.",
+    canGetPb: false,
+    difficultyLevel: 1,
+    properties: ["ignoresLanguage", "noLetters", "unspeakable"],
+    frontendForcedConfig: {
+      punctuation: [false],
+      numbers: [false],
+    },
+    frontendFunctions: ["getWord"],
+    name: "arabic",
+  },
   specials: {
     description: "!@#$%^&*. Only special characters.",
     canGetPb: false,

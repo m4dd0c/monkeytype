@@ -16,6 +16,7 @@ export type FunboxName =
   | "space_balls"
   | "gibberish"
   | "ascii"
+  | "arabic"
   | "specials"
   | "plus_one"
   | "plus_zero"
