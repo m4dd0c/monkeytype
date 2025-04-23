@@ -17,6 +17,7 @@ export type FunboxName =
   | "gibberish"
   | "ascii"
   | "arabic"
+  | "russian"
   | "specials"
   | "plus_one"
   | "plus_zero"
