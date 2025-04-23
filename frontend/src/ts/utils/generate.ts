@@ -12,13 +12,12 @@ export function getBinary(): string {
 }
 
 /**
- * Generates a random binary string of length 8.
- * @returns The generated binary string.
+ * Generates a gibberish arabic string (Length: Range 1 to 4)
+ * @returns The generated arabic string.
  */
 export function getArabic(): string {
   const randLen = randomIntFromRange(1, 4);
   const arabicLetters = [
-    "ا",
     "ب",
     "ت",
     "ث",
