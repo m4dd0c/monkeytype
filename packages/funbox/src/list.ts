@@ -208,7 +208,7 @@ const list: Record<FunboxName, FunboxMetadata> = {
     frontendForcedConfig: {
       punctuation: [false],
     },
-    frontendFunctions: ["getWord"],
+    frontendFunctions: ["getWord", "rememberSettings"],
     name: "russian",
   },
   specials: {
