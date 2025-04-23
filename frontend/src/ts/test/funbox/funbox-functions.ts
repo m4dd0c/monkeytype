@@ -435,6 +435,11 @@ const list: Partial<Record<FunboxName, FunboxFunctions>> = {
       save("language", Config.language, UpdateConfig.setLanguage);
     },
   },
+  russian: {
+    getWord(): string {
+      return GetText.getRussian();
+    },
+  },
   specials: {
     getWord(): string {
       return GetText.getSpecials();
