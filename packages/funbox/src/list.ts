@@ -189,7 +189,7 @@ const list: Record<FunboxName, FunboxMetadata> = {
     name: "ascii",
   },
   arabic: {
-    description: "I know little bit of Arabic.",
+    description: "ون كص د ف صم غ جغفو سش ف فن ف ظزق ص ذط فتخ رن ضن ش عليث ص  ",
     canGetPb: false,
     difficultyLevel: 1,
     properties: ["ignoresLanguage", "noLetters", "unspeakable"],
@@ -197,7 +197,7 @@ const list: Record<FunboxName, FunboxMetadata> = {
       punctuation: [false],
       numbers: [false],
     },
-    frontendFunctions: ["getWord"],
+    frontendFunctions: ["getWord", "rememberSettings"],
     name: "arabic",
   },
   specials: {
