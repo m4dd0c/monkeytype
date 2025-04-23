@@ -430,6 +430,10 @@ const list: Partial<Record<FunboxName, FunboxFunctions>> = {
     getWord(): string {
       return GetText.getArabic();
     },
+    rememberSettings(): void {
+      UpdateConfig.setLanguage("arabic", true);
+      save("language", Config.language, UpdateConfig.setLanguage);
+    },
   },
   specials: {
     getWord(): string {
