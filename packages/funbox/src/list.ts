@@ -475,12 +475,17 @@ const list: Record<FunboxName, FunboxMetadata> = {
     frontendFunctions: ["withWords"],
     name: "polyglot",
   },
+  asl: {
+    description: "Practice american sign language.",
+    canGetPb: true,
+    difficultyLevel: 1,
+    properties: ["hasCssFile", "noLigatures"],
+    name: "asl",
+    cssModifications: ["words"],
+  },
 };
 
-// oxlint doesnt understand ts overloading
-// eslint-disable-next-line no-redeclare
 export function getFunbox(name: FunboxName): FunboxMetadata;
-// eslint-disable-next-line no-redeclare
 export function getFunbox(names: FunboxName[]): FunboxMetadata[];
 export function getFunbox(
   nameOrNames: FunboxName | FunboxName[]
