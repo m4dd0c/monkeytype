@@ -197,6 +197,7 @@ export type LanguageObject = {
   ligatures?: boolean;
   orderedByFrequency?: boolean;
   words: string[];
+  charset: string[];
   additionalAccents: Accents;
   bcp47?: string;
   originalPunctuation?: boolean;
