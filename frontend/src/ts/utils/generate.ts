@@ -99,15 +99,15 @@ export function getMorse(word: string): string {
 
 /**
  * Generates a random gibberish string of lowercase letters.
+ * Generates a random gibberish string from charset
+ * @param {string[]} charset - Charset of a language
  * @returns The generated gibberish string.
  */
-export function getGibberish(): string {
-  const randLen = randomIntFromRange(1, 7);
-  let ret = "";
-  for (let i = 0; i < randLen; i++) {
-    ret += String.fromCharCode(97 + randomIntFromRange(0, 25));
-  }
-  return ret;
+export function getGibberish(charset: string[]): string {
+  const randLen = randomIntFromRange(1, 5);
+  return Array.from({ length: randLen }, () =>
+    Arrays.randomElementFromArray(charset)
+  ).join("");
 }
 
 /**
