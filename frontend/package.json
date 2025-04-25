@@ -8,7 +8,7 @@
     "oxlint": "oxlint .",
     "lint": "npm run oxlint && npm run eslint",
     "validate-json": "npx gulp validate-json-schema",
-    "generate-charset-all": "node ./scripts/generate-charset.cjs",
+    "generate-charset-all": "node ./scripts/generate-charset.cjs --all",
     "generate-charset": "node ./scripts/generate-charset.cjs",
     "audit": "vite-bundle-visualizer",
     "dep-graph": "madge -c -i \"dep-graph.png\" ./src/ts",
