@@ -1,7 +1,6 @@
 {
   "name": "portuguese",
   "_comment": "Sourced from: https://www.wordandphrase.info/port",
-
   "bcp47": "pt-PT",
   "words": [
     "o",
@@ -205,5 +204,38 @@
     "abrir",
     "quase",
     "realizar"
+  ],
+  "charset": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "x",
+    "z",
+    "á",
+    "ã",
+    "ç",
+    "é",
+    "ê",
+    "í",
+    "ó",
+    "ú"
   ]
 }

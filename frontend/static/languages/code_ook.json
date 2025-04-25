@@ -12,5 +12,6 @@
     "Ook! Ook?",
     "Ook? Ook!",
     "Ook? Ook?"
-  ]
+  ],
+  "charset": [" ", "!", ".", "?", "O", "k", "o"]
 }

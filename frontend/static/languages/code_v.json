@@ -46,14 +46,11 @@
     "volatile",
     "__global",
     "__offsetof",
-
     "print",
     "println",
-
     "main",
     "panic",
     "exit",
-
     "bool",
     "i8",
     "i16",
@@ -69,5 +66,38 @@
     "rune",
     "voidptr",
     "any"
+  ],
+  "charset": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "6",
+    "8",
+    "_",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z"
   ]
 }

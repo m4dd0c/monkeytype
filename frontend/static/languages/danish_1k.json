@@ -1,7 +1,6 @@
 {
   "name": "danish_1k",
   "_comment": "This list is licensed by Dansk Sprog- og Litteraturselskab and can only be used with their permission.",
-
   "bcp47": "da-DK",
   "words": [
     "være",
@@ -958,5 +957,39 @@
     "have",
     "trods",
     "lære"
+  ],
+  "charset": [
+    "E",
+    "I",
+    "R",
+    "T",
+    "U",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "y",
+    "å",
+    "æ",
+    "é",
+    "ø"
   ]
 }

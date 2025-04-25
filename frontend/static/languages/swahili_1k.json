@@ -1,7 +1,6 @@
 {
   "name": "swahili_1k",
   "_comment": "Source from: https://1000mostcommonwords.com/1000-most-common-swahili-words/.",
-
   "noLazyMode": true,
   "words": [
     "kwamba",
@@ -824,5 +823,41 @@
     "kukusanya",
     "kuchagua",
     "pana"
+  ],
+  "charset": [
+    " ",
+    "B",
+    "D",
+    "M",
+    "O",
+    "R",
+    "S",
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
+    "j",
+    "k",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "s",
+    "t",
+    "u",
+    "v",
+    "w",
+    "x",
+    "y",
+    "z",
+    "’"
   ]
 }
